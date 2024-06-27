@@ -1,0 +1,48 @@
+namespace: kerno
+
+replicaCount: 2
+autoscaling:
+  enabled: false
+
+image:
+  pullPolicy: IfNotPresent
+
+env:
+  - name: K8S_LOOKUPS_ENABLED
+    value: "true"
+  - name: APP_TARGET_KUBE_API
+    value: https://kubernetes.default
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 20
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+volumes:
+  - name: cert
+    secret:
+      defaultMode: 420
+      secretName: kerno-tls-certs
+
+volumeMounts:
+  - name: cert
+    mountPath: /config/certs
+    readOnly: true
+
+terminationGracePeriodSeconds: 10

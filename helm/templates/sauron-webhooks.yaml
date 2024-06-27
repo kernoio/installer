@@ -1,0 +1,55 @@
+{{ include "gen-tls-certs" . -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: sauron-mutating-webhook
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ .Values.global.tlsCert }}
+      service:
+        name: sauron-webhook-service
+        namespace: kerno
+        path: /resources/mutated
+    failurePolicy: Ignore
+    name: mpod.kb.io
+    rules:
+      - apiGroups:
+          - '*'
+        apiVersions:
+          - '*'
+        operations:
+          - UPDATE
+          - DELETE
+        resources:
+          - '*'
+        scope: '*'
+    sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: sauron-validating-webhook
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ .Values.global.tlsCert }}
+      service:
+        name: sauron-webhook-service
+        namespace: kerno
+        path: /resources/mutated
+    failurePolicy: Ignore
+    name: mpod.kb.io
+    rules:
+      - apiGroups:
+          - '*'
+        apiVersions:
+          - '*'
+        operations:
+          - CREATE
+        resources:
+          - '*'
+        scope: '*'
+    sideEffects: None

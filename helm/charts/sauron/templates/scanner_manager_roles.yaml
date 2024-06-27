@@ -1,0 +1,44 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kerno:scanner-manager
+rules:
+  - apiGroups:
+      - scanners.kerno.io
+    resources:
+      - scanners
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - scanners.kerno.io
+    resources:
+      - scanners/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - scanners.kerno.io
+    resources:
+      - scanners/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kerno:gaia-scanner-manager-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kerno:scanner-manager
+subjects:
+  - kind: ServiceAccount
+    name: kerno-sa
+    namespace: kerno

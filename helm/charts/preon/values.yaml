@@ -1,0 +1,58 @@
+# TODO: figure out how to do this without data duplication
+#livenessProbe:
+#  httpGet:
+#    path: /healthz
+#    port: 8080
+#  initialDelaySeconds: 15
+#  periodSeconds: 20
+#readinessProbe:
+#  httpGet:
+#    path: /readyz
+#    port: 8080
+#  initialDelaySeconds: 5
+#  periodSeconds: 10
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+volumeMounts:
+  - name: host-root
+    mountPath: /host
+    readOnly: true
+  - name: host-sys
+    mountPath: /sys
+    readOnly: true
+
+volumes:
+  - name: host-root
+    hostPath:
+      path: /
+      type: Directory
+  - name: host-sys
+    hostPath:
+      path: /sys
+      type: Directory
+
+securityContext:
+  capabilities:
+    add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+  privileged: true
+
+terminationGracePeriodSeconds: 10
+
+service:
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 8443
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080

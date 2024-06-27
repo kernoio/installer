@@ -1,0 +1,11 @@
+global:
+  serviceAccountName: "kerno-sa"
+  appVersion: "0.1.3-beta" # I'd like to use .Chart.AppVersion from every subchart, but I think it's not possible
+  namespace: "kerno"
+  imageRepository: public.ecr.aws/fyck.io
+
+nanobe:
+  storage:
+    enabled: true
+    type: efs
+    capacity: 100Gi

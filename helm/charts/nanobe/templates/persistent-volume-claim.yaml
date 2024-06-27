@@ -1,0 +1,13 @@
+{{- if .Values.storage.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.storage.type }}-claim-scribe
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .Values.storage.type }}-sc-scribe
+  resources:
+    requests:
+      storage: {{ .Values.storage.capacity }}
+{{- end }}

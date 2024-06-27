@@ -1,0 +1,36 @@
+nanobe:
+  &nanobe
+  image:
+    tag: "main"
+  extraEnv:
+    - name: K8S_BRIDGE_URL
+      value: "wss://ingestion.kerno.io:443/k8s-bridge/ws"
+    - name: K8S_BRIDGE_HTTP_URL
+      value: "https://ingestion.kerno.io:443/k8s-bridge"
+
+sauron:
+  &sauron
+  image:
+    tag: "main"
+  extraEnv:
+    - name: BRIDGE_HOST
+      value: ingestion.kerno.io
+    - name: MONITO_API_ADDRESS
+      value: https://ingestion.kerno.io
+    - name: BRIDGE_SCHEMA
+      value: wss
+
+preon:
+  &preon
+  image:
+    tag: "main"
+
+global:
+  environment: "production"
+  logLevel: "INFO"
+  preon:
+    *preon
+  nanobe:
+    *nanobe
+  sauron:
+    *sauron

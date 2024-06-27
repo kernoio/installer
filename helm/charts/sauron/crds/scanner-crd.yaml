@@ -1,0 +1,73 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: scanners.scanners.kerno.io
+spec:
+  group: scanners.kerno.io
+  names:
+    kind: Scanner
+    listKind: ScannerList
+    plural: scanners
+    singular: scanner
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          description: Scanner is the Schema for the scanners API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: ScannerSpec defines the desired state of Scanner
+              properties:
+                foo:
+                  description: Foo is an example field of Scanner. Edit scanner_types.go
+                    to remove/update
+                  type: string
+              type: object
+            status:
+              description: ScannerStatus defines the observed state of Scanner
+              properties:
+                lastReconciliationEnded:
+                  format: date-time
+                  type: string
+                lastReconciliationStarted:
+                  format: date-time
+                  type: string
+                lastUpdate:
+                  format: date-time
+                  type: string
+                reconciliationPhase:
+                  type: string
+                subscribers:
+                  additionalProperties:
+                    properties:
+                      lastRun:
+                        format: date-time
+                        type: string
+                    required:
+                      - lastRun
+                    type: object
+                  type: object
+              required:
+                - subscribers
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

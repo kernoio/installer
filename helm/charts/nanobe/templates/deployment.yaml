@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    {{- include "app-chart.labels" . | nindent 4 }}
+  namespace: {{ .Values.global.namespace }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "app-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "app-chart.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.global.serviceAccountName }}
+      containers:
+        - name: main
+          command: [ "./application", "-Xmx80m", "-Dquarkus.http.host=0.0.0.0" ]
+          image: "{{ .Values.global.imageRepository }}/{{ .Chart.Name }}:{{ .Values.global.nanobe.image.tag | default .Values.global.environment }}"
+          imagePullPolicy: "{{ .Values.image.pullPolicy }}"
+          env:
+            - name: INSTALLATION_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: INSTALLATION_KEY
+                  name: installation-config
+            - name: INSTALLATION_ID
+              valueFrom:
+                secretKeyRef:
+                  key: CLUSTER_ID
+                  name: installation-config
+            - name: APP_NAME
+              value: "{{ .Chart.Name }}"
+            {{- toYaml .Values.env | nindent 12 }}
+            {{- with .Values.global.nanobe.extraEnv}}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- if .Values.storage.enabled }}
+            - name: samples
+              mountPath: /work/samples
+            {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      volumes:
+        {{- toYaml .Values.volumes | nindent 8 }}
+        {{- if .Values.storage.enabled }}
+        - name: samples
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.type }}-claim-scribe
+        {{- end }}
