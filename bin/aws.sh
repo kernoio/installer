@@ -181,12 +181,11 @@ EOF
 
 create_efs_volume() {
   EFS_NAME="$CLUSTER-kerno-efs"
-  echo "🖴  Creating EFS file-system $EFS_NAME accessible by $CLUSTER ..."
   EFS_DESCRIBE=`aws $AWS_ARGS efs describe-file-systems`
   EFS_FS_ID=`echo $EFS_DESCRIBE| jq -er ".FileSystems[] | select (.Tags[].Key == \"Name\" and .Tags[].Value == \"$EFS_NAME\") | .FileSystemId"`
   
   if [[ -z "$EFS_FS_ID" ]]; then
-    echo "🖴  Filesystem \"$EFS_NAME\" for cluster $CLUSTER ..."
+    echo "🖴  Creating filesystem \"$EFS_NAME\" for cluster $CLUSTER ..."
     EFS_FS_ID=`aws $AWS_ARGS efs create-file-system \
       --tags "Key=Name,Value=$EFS_NAME" \
       --performance-mode generalPurpose \
@@ -200,7 +199,7 @@ create_efs_volume() {
 
   EFS_STATE="unknown"
   while [[ "$EFS_STATE" != "available" ]]; do 
-    echo "⏲️  Waiting for file system to become available... currently: $EFS_STATE "
+    echo "⏲️  Waiting for file system availability ... "
     EFS_STATE=`aws $AWS_ARGS efs describe-file-systems --file-system-id $EFS_FS_ID | jq -er '.FileSystems[0].LifeCycleState'` ;
   done ;
 
