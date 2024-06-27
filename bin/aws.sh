@@ -1,4 +1,5 @@
 #!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 DEPS_OK=`which aws sed jq grep kubectl | wc -l`
 if [[  $DEPS_OK != 5 ]]; then
   echo $0 requires aws-cli v2, sed, jq, grep, getopt and kubectl.
@@ -56,11 +57,10 @@ done
 
  
 prepare() {
-  echo "👀 Targeting cluster $CLUSTER ..."
-  echo "👀 Identifying AWS account ..."
+  echo "🔑 Identifying AWS account thorugh STS ..."
   AWS_ACCOUNT=`aws $AWS_ARGS sts get-caller-identity --query "Account" --output text`
 
-  echo "👀 Identifying cluster configuration ..."
+  echo "⚙️  Identifying cluster configuration ..."
   EKS_DESCRIBE=`aws $AWS_ARGS eks describe-cluster --name $CLUSTER`
   EKS_VERSION=`echo $EKS_DESCRIBE | jq -er '.cluster.version'`
   EKS_VPC_ID=`echo $EKS_DESCRIBE | jq -er '.cluster.resourcesVpcConfig.vpcId'`
@@ -69,8 +69,26 @@ prepare() {
   EKS_VPC_SUBNETS=(`echo $EKS_DESCRIBE | jq -er '.cluster.resourcesVpcConfig.subnetIds[]'`)
 }
 
+install_oidc_stack() {
+  OIDC_ARN="arn:aws:iam::$AWS_ACCOUNT:oidc-provider/$EKS_OIDC_ID"
+  OIDC_EXISTING=`aws --profile kernosso-avatar --region eu-west-1 iam  list-open-id-connect-providers | jq -er ".OpenIDConnectProviderList[] | select (.Arn == \"$OIDC_ARN\") | .Arn"`
+
+  if [[ -z "$OIDC_EXISTING" ]]; then
+    echo "🔒 Preparing OIDC provider for your cluster ... this can take a few minutes ..."
+    OUT=`aws $AWS_ARGS cloudformation delete-stack --stack-name ${CLUSTER}-oidc `
+    OUT=`aws $AWS_ARGS cloudformation create-stack  \
+      --capabilities CAPABILITY_NAMED_IAM \
+      --stack-name ${CLUSTER}-oidc \
+      --parameters ParameterKey=ClusterName,ParameterValue=${CLUSTER} \
+      --template-body file://$SCRIPT_DIR/oidc-provider.yaml `
+
+    OUT=`aws $AWS_ARGS cloudformation wait stack-create-complete --stack-name ${CLUSTER}-oidc`;
+  fi
+  echo "🔒 OIDC provider for your cluster located."
+}
+
 install_driver() {
-  echo "👀 Identifying appropriate aws-efs-csi-driver addon for API $EKS_VERSION ..."
+  echo "👀 Looking for aws-efs-csi-driver addon for API $EKS_VERSION ..."
   EFS_ROLE_NAME=KernoEKS_EFS_CSI_DriverRole
   EKS_EFS_ADDON=`aws $AWS_ARGS eks describe-addon-versions --kubernetes-version $EKS_VERSION | jq -er '.addons[].addonName' | grep aws-efs-csi-driver`
   if [[ -z "$EKS_EFS_ADDON" ]]; then
@@ -84,8 +102,6 @@ install_driver() {
     return
   fi
 
-
-  echo "Cluster $CLUSTER aws:$AWS_ACCOUNT eks:$EKS_VERSION on vpc:$EKS_VPC_ID oidc:$EKS_OIDC_ID"
   while true; do
       read -p "❓ Do you wish to configure the aws-efs-csi driver? [y/n] " yn
       case $yn in
@@ -122,13 +138,13 @@ install_driver_policies() {
 
 EOF
 
-  echo "👀 Creating role for EKS EFS CSI driver ..."
+  echo "⚙️  Creating role for EKS EFS CSI driver ..."
   aws $AWS_ARGS iam create-role \
     --role-name $EFS_ROLE_NAME \
     --assume-role-policy-document "file:///tmp/kerno-efs-csi-driver-trust-policy.json"
     
 
-  echo "👀 Attaching AmazonEFSCSIDriverPolicy to role ..."
+  echo "⚙️  Attaching AmazonEFSCSIDriverPolicy to role ..."
   aws $AWS_ARGS iam attach-role-policy \
     --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy \
     --role-name $EFS_ROLE_NAME  \
@@ -165,12 +181,12 @@ EOF
 
 create_efs_volume() {
   EFS_NAME="$CLUSTER-kerno-efs"
-  echo "👀 Creating EFS file-system $EFS_NAME accessible by $CLUSTER ..."
+  echo "🖴  Creating EFS file-system $EFS_NAME accessible by $CLUSTER ..."
   EFS_DESCRIBE=`aws $AWS_ARGS efs describe-file-systems`
   EFS_FS_ID=`echo $EFS_DESCRIBE| jq -er ".FileSystems[] | select (.Tags[].Key == \"Name\" and .Tags[].Value == \"$EFS_NAME\") | .FileSystemId"`
   
   if [[ -z "$EFS_FS_ID" ]]; then
-    echo Filesystem with name $EFS_NAME doesn''t exist... creating now.   
+    echo "🖴  Filesystem \"$EFS_NAME\" for cluster $CLUSTER ..."
     EFS_FS_ID=`aws $AWS_ARGS efs create-file-system \
       --tags "Key=Name,Value=$EFS_NAME" \
       --performance-mode generalPurpose \
@@ -178,12 +194,13 @@ create_efs_volume() {
       --query 'FileSystemId' \
       --output text
       `
+  else
+    echo "🖴 Using existing filesystem \"$EFS_NAME\"."
   fi
-  echo "👀 Using efs::FileSystemId $EFS_FS_ID ..."
 
   EFS_STATE="unknown"
   while [[ "$EFS_STATE" != "available" ]]; do 
-    echo "👀 Waiting for file system to become available... currently: $EFS_STATE "
+    echo "⏲️  Waiting for file system to become available... currently: $EFS_STATE "
     EFS_STATE=`aws $AWS_ARGS efs describe-file-systems --file-system-id $EFS_FS_ID | jq -er '.FileSystems[0].LifeCycleState'` ;
   done ;
 
@@ -191,25 +208,28 @@ create_efs_volume() {
   
   for SUB_ID in "${EKS_VPC_SUBNETS[@]}"
   do
-    echo "👀 Configuring access point for subnet $SUB_ID ..."
     EFS_MT_FOUND=`echo $EFS_MOUNT_TARGETS | jq -er ".MountTargets[] | select(.SubnetId == \"$SUB_ID\") | .MountTargetId"`
 
     if [[ -z "$EFS_MT_FOUND" ]]; then
+      echo "🖴  Configuring access point for subnet $SUB_ID ..."
       aws $AWS_ARGS efs create-mount-target \
         --file-system-id $EFS_FS_ID \
         --subnet-id $SUB_ID \
         --security-groups $EFS_SECURITY_GROUP_ID \
-        > /dev/null
+        2&1> /dev/null
+    else
+      echo "🖴  Access point for subnet $SUB_ID already exists."
     fi
   done
 }
 
 run_helm() {
   echo "🚀 Installing Kerno via Helm ..."
-  helm install --replace kerno ./helm -f ./helm/values-prod.yaml    \
-    --kube-context $K8S_CONTEXT                              \
-    --set global.fsId=$EFS_FS_ID                             \
-    --set apiKey=$K4_KEY                                 
+  helm install --replace kerno ./helm   \
+    --kube-context $K8s_CONTEXT                                    \
+    --set global.fsId="$EFS_FS_ID"                                 \
+    --set apiKey="$K4_KEY"                                 \
+    -f ./helm/values-prod.yaml
   echo "All done."
 }
 
@@ -237,6 +257,7 @@ install() {
     exit
   fi
 
+  clear
   echo "----------------------------------------------------------------------------" 
   echo "✨ Kerno @ EKS - https://www.kerno.io"
   echo "🚀 Preparing AWS EKS installation... it should take less than a minute."
@@ -244,6 +265,7 @@ install() {
   echo
 
   prepare
+  install_oidc_stack
   install_driver
   create_efs_volume
   run_helm
