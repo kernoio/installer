@@ -19,7 +19,7 @@ Awesome
 ```console
 $ git clone --depth 1 git@github.com:kernoio/installer kerno-installer
 $ cd kerno-installer
-$ ./bin/aws.sh           \
+$ ./bin/aws.sh install   \
   --profile $AWS_PROFILE \
   --region  $AWS_REGION  \
   --cluster $EKS_CLUSTER \
