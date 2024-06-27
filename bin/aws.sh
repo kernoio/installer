@@ -234,8 +234,8 @@ help() {
   echo
   echo "Usage: $0 [command] [options]"
   echo "  Commands:"
-  echo "    help       - shows this help"
-  echo "    install    - configures EFS in your EKS cluster"
+  echo "    help            shows this help"
+  echo "    install         configures Kerno in your EKS cluster"
   echo ""
   echo "  Options:"
   echo "    --profile       required <aws-profile>"
