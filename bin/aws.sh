@@ -216,7 +216,7 @@ install() {
 
   clear
   echo "----------------------------------------------------------------------------" 
-  echo "✨ Kerno @ EKS - https://www.kerno.io"
+  echo "✨ Kerno @ EKS Installer - https://www.kerno.io"
   echo "🚀 Preparing AWS EKS installation... it should take less than a minute."
   echo "----------------------------------------------------------------------------"
   echo
@@ -230,6 +230,8 @@ install() {
 
 
 help() {
+  echo "✨ Kerno @ EKS Installer - https://www.kerno.io"
+  echo
   echo "Usage: $0 [command] [options]"
   echo "  Commands:"
   echo "    help       - shows this help"
@@ -244,15 +246,15 @@ help() {
   exit
 }
 
+if [[ -z "$COMMAND" ]]; then
+  help;
+  exit;
+fi
+
 # evaluate command line options   -o n:p:r:c:
 VALID_ARGS=$(getopt --long k8s-context:,k4-key:,profile:,region:,cluster: -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
-fi
-
-if [[ -z "$COMMAND" ]]; then
-  help;
-  exit;
 fi
 
 # echo $VALID_ARGS
