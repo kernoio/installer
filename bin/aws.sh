@@ -7,57 +7,15 @@ if [[  $DEPS_OK != 5 ]]; then
   exit
 fi
 
-COMMAND=$1
+COMMAND="$1"
 K4_KEY=""
 K8S_CONTEXT=""
 CLUSTER=""
 AWS_ARGS=""
 
-# evaluate command line options   -o n:p:r:c:
-VALID_ARGS=$(getopt --long k8s-context:,k4-key:,profile:,region:,cluster: -- "$@")
-if [[ $? -ne 0 ]]; then
-    exit 1;
-fi
-
-# echo $VALID_ARGS
-eval set -- "$VALID_ARGS"
-while [ : ]; do
-  # echo Evaluating $1 $2
-  case "$1" in
-    --profile)
-        AWS_ARGS="$AWS_ARGS --profile $2"
-        shift 2
-        continue
-        ;;
-    --region)
-        AWS_ARGS="$AWS_ARGS --region $2"
-        shift 2
-        continue
-        ;;
-    --cluster)
-        CLUSTER="$2"
-        shift 2
-        continue
-        ;;
-    --k8s-context)
-        K8S_CONTEXT="$2"
-        shift 2
-        continue
-        ;;
-    --k4-key)
-        K4_KEY="$2"
-        shift 2
-        continue
-        ;;
-    --) shift;
-        break 
-        ;;
-  esac
-done
-
  
 prepare() {
-  echo "🔑 Identifying AWS account thorugh STS ..."
+  echo "🔑 Identifying AWS account through STS ..."
   AWS_ACCOUNT=`aws $AWS_ARGS sts get-caller-identity --query "Account" --output text`
 
   echo "⚙️  Identifying cluster configuration ..."
@@ -286,11 +244,52 @@ help() {
   exit
 }
 
+# evaluate command line options   -o n:p:r:c:
+VALID_ARGS=$(getopt --long k8s-context:,k4-key:,profile:,region:,cluster: -- "$@")
+if [[ $? -ne 0 ]]; then
+    exit 1;
+fi
 
 if [[ -z "$COMMAND" ]]; then
   help;
   exit;
 fi
+
+# echo $VALID_ARGS
+eval set -- "$VALID_ARGS"
+while [ : ]; do
+  # echo Evaluating $1 $2
+  case "$1" in
+    --profile)
+        AWS_ARGS="$AWS_ARGS --profile $2"
+        shift 2
+        continue
+        ;;
+    --region)
+        AWS_ARGS="$AWS_ARGS --region $2"
+        shift 2
+        continue
+        ;;
+    --cluster)
+        CLUSTER="$2"
+        shift 2
+        continue
+        ;;
+    --k8s-context)
+        K8S_CONTEXT="$2"
+        shift 2
+        continue
+        ;;
+    --k4-key)
+        K4_KEY="$2"
+        shift 2
+        continue
+        ;;
+    --) shift;
+        break 
+        ;;
+  esac
+done
 
 case $COMMAND in
   help ) help ;;
