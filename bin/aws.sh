@@ -72,7 +72,7 @@ install_driver() {
     exit;
   fi
 
-  ALREADY_DRIVER=`aws $AWS_ARGS eks list-addons --cluster-name main-eks --query "addons" --output text | grep aws-efs-csi-driver`
+  ALREADY_DRIVER=`aws $AWS_ARGS eks list-addons --cluster-name $CLUSTER --query "addons" --output text | grep aws-efs-csi-driver`
   if [[ $ALREADY_DRIVER == "aws-efs-csi-driver" ]]; then
     echo "aws-efs-csi-driver addon is already installed in your cluster."
     return
@@ -198,9 +198,8 @@ create_efs_volume() {
 
 run_helm() {
   echo Installing Kerno via helm with EFS $EFS_FS_ID
-  helm install -f ./helm/values-prod.yaml                \
+  helm install beta014 -f ./helm/values-prod.yaml                \
     --set global.fsId=$EFS_FS_ID                         \
-    --set clusterId=$K4_KEY                              \
     --set apiKey=$K4_KEY                                 \
     ./helm
 }
