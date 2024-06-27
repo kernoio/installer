@@ -23,8 +23,8 @@ $ ./bin/aws.sh install   \
   --profile $AWS_PROFILE \
   --region  $AWS_REGION  \
   --cluster $EKS_CLUSTER \
+  --k8s-context $K8S_CONTEXT_NAME \
   --k4-key  $K4_KEY      
-  --k8s-context $K8S_CONTEXT_NAME
 ```
 
 
