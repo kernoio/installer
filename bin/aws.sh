@@ -212,11 +212,11 @@ create_efs_volume() {
 
     if [[ -z "$EFS_MT_FOUND" ]]; then
       echo "🖴  Configuring access point for subnet $SUB_ID ..."
-      aws $AWS_ARGS efs create-mount-target \
+      OUT=`aws $AWS_ARGS efs create-mount-target \
         --file-system-id $EFS_FS_ID \
         --subnet-id $SUB_ID \
         --security-groups $EFS_SECURITY_GROUP_ID \
-        2&1> /dev/null
+        2> /dev/null`
     else
       echo "🖴  Access point for subnet $SUB_ID already exists."
     fi
