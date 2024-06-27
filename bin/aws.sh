@@ -195,7 +195,7 @@ create_efs_volume() {
       --output text
       `
   else
-    echo "🖴 Using existing filesystem \"$EFS_NAME\"."
+    echo "🖴  Using existing filesystem \"$EFS_NAME\"."
   fi
 
   EFS_STATE="unknown"
