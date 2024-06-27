@@ -8,11 +8,12 @@ fi
 
 COMMAND=$1
 K4_KEY=""
+K8S_CONTEXT=""
 CLUSTER=""
 AWS_ARGS=""
 
 # evaluate command line options   -o n:p:r:c:
-VALID_ARGS=$(getopt --long k4-key:,profile:,region:,cluster: -- "$@")
+VALID_ARGS=$(getopt --long k8s-context:,k4-key:,profile:,region:,cluster: -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
 fi
@@ -37,6 +38,11 @@ while [ : ]; do
         shift 2
         continue
         ;;
+    --k8s-context)
+        K8S_CONTEXT="$2"
+        shift 2
+        continue
+        ;;
     --k4-key)
         K4_KEY="$2"
         shift 2
@@ -50,11 +56,11 @@ done
 
  
 prepare() {
-  echo Targeting cluster $CLUSTER ...
-  echo Identifying AWS account ...
+  echo "👀 Targeting cluster $CLUSTER ..."
+  echo "👀 Identifying AWS account ..."
   AWS_ACCOUNT=`aws $AWS_ARGS sts get-caller-identity --query "Account" --output text`
 
-  echo Identifying cluster configuration ...
+  echo "👀 Identifying cluster configuration ..."
   EKS_DESCRIBE=`aws $AWS_ARGS eks describe-cluster --name $CLUSTER`
   EKS_VERSION=`echo $EKS_DESCRIBE | jq -er '.cluster.version'`
   EKS_VPC_ID=`echo $EKS_DESCRIBE | jq -er '.cluster.resourcesVpcConfig.vpcId'`
@@ -64,25 +70,24 @@ prepare() {
 }
 
 install_driver() {
-  echo Identifying appropriate aws-efs-csi-driver addon for API $EKS_VERSION ...
+  echo "👀 Identifying appropriate aws-efs-csi-driver addon for API $EKS_VERSION ..."
   EFS_ROLE_NAME=KernoEKS_EFS_CSI_DriverRole
   EKS_EFS_ADDON=`aws $AWS_ARGS eks describe-addon-versions --kubernetes-version $EKS_VERSION | jq -er '.addons[].addonName' | grep aws-efs-csi-driver`
   if [[ -z "$EKS_EFS_ADDON" ]]; then
-    echo "No compatible aws-efs-csi-driver addon was found for EKS $EKS_VERSION"
+    echo "💔 No compatible aws-efs-csi-driver addon was found for EKS $EKS_VERSION"
     exit;
   fi
 
   ALREADY_DRIVER=`aws $AWS_ARGS eks list-addons --cluster-name $CLUSTER --query "addons" --output text | grep aws-efs-csi-driver`
   if [[ $ALREADY_DRIVER == "aws-efs-csi-driver" ]]; then
-    echo "aws-efs-csi-driver addon is already installed in your cluster."
+    echo "🚀 aws-efs-csi-driver addon is already installed in your cluster."
     return
   fi
 
 
-  echo 
   echo "Cluster $CLUSTER aws:$AWS_ACCOUNT eks:$EKS_VERSION on vpc:$EKS_VPC_ID oidc:$EKS_OIDC_ID"
   while true; do
-      read -p "Do you wish to configure the aws-efs-csi driver? [y/n] " yn
+      read -p "❓ Do you wish to configure the aws-efs-csi driver? [y/n] " yn
       case $yn in
           [Nn]* ) exit;;
           [Yy]* ) break;;
@@ -90,6 +95,10 @@ install_driver() {
       esac
   done
 
+  install_driver_policies ;
+}
+
+install_driver_policies() {
 
   cat > /tmp/kerno-efs-csi-driver-trust-policy.json <<EOF
 {
@@ -113,14 +122,13 @@ install_driver() {
 
 EOF
 
-  echo Creating role for EKS EFS CSI driver ...
+  echo "👀 Creating role for EKS EFS CSI driver ..."
   aws $AWS_ARGS iam create-role \
     --role-name $EFS_ROLE_NAME \
-    --assume-role-policy-document "file:///tmp/kerno-efs-csi-driver-trust-policy.json" \
-    > /dev/null
+    --assume-role-policy-document "file:///tmp/kerno-efs-csi-driver-trust-policy.json"
     
 
-  echo Attaching AmazonEFSCSIDriverPolicy to role ...
+  echo "👀 Attaching AmazonEFSCSIDriverPolicy to role ..."
   aws $AWS_ARGS iam attach-role-policy \
     --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy \
     --role-name $EFS_ROLE_NAME  \
@@ -157,7 +165,7 @@ EOF
 
 create_efs_volume() {
   EFS_NAME="$CLUSTER-kerno-efs"
-  echo Creating EFS file-system $EFS_NAME accessible by $CLUSTER ...
+  echo "👀 Creating EFS file-system $EFS_NAME accessible by $CLUSTER ..."
   EFS_DESCRIBE=`aws $AWS_ARGS efs describe-file-systems`
   EFS_FS_ID=`echo $EFS_DESCRIBE| jq -er ".FileSystems[] | select (.Tags[].Key == \"Name\" and .Tags[].Value == \"$EFS_NAME\") | .FileSystemId"`
   
@@ -171,11 +179,11 @@ create_efs_volume() {
       --output text
       `
   fi
-  echo Using efs::FileSystemId $EFS_FS_ID ...
+  echo "👀 Using efs::FileSystemId $EFS_FS_ID ..."
 
   EFS_STATE="unknown"
   while [[ "$EFS_STATE" != "available" ]]; do 
-    echo Waiting for file system to become available... currently: $EFS_STATE ;
+    echo "👀 Waiting for file system to become available... currently: $EFS_STATE "
     EFS_STATE=`aws $AWS_ARGS efs describe-file-systems --file-system-id $EFS_FS_ID | jq -er '.FileSystems[0].LifeCycleState'` ;
   done ;
 
@@ -183,25 +191,26 @@ create_efs_volume() {
   
   for SUB_ID in "${EKS_VPC_SUBNETS[@]}"
   do
-    echo Configuring access point for subnet $SUB_ID ...
-    EFS_MT_FOUND=`echo $EFS_MOUNT_TARGETS | jq ".MountTargets[] | select(.SubnetId == \"$SUB_ID\")"`
+    echo "👀 Configuring access point for subnet $SUB_ID ..."
+    EFS_MT_FOUND=`echo $EFS_MOUNT_TARGETS | jq -er ".MountTargets[] | select(.SubnetId == \"$SUB_ID\") | .MountTargetId"`
 
-    if [[ -k $EFS_MT_FOUND ]]; then
+    if [[ -z "$EFS_MT_FOUND" ]]; then
       aws $AWS_ARGS efs create-mount-target \
         --file-system-id $EFS_FS_ID \
         --subnet-id $SUB_ID \
         --security-groups $EFS_SECURITY_GROUP_ID \
-        > /dev/null ;
+        > /dev/null
     fi
   done
 }
 
 run_helm() {
-  echo Installing Kerno via helm with EFS $EFS_FS_ID
-  helm install beta014 -f ./helm/values-prod.yaml                \
-    --set global.fsId=$EFS_FS_ID                         \
-    --set apiKey=$K4_KEY                                 \
-    ./helm
+  echo "🚀 Installing Kerno via Helm ..."
+  helm install --replace kerno ./helm -f ./helm/values-prod.yaml    \
+    --kube-context $K8s_CONTEXT                              \
+    --set global.fsId=$EFS_FS_ID                             \
+    --set apiKey=$K4_KEY                                 
+  echo "All done."
 }
 
 
@@ -222,6 +231,17 @@ install() {
     help
     exit
   fi
+  if [[ -z "$K8S_CONTEXT" ]]; then
+    echo "$0: --k8s-context <kubectl-context> is required"
+    help
+    exit
+  fi
+
+  echo "----------------------------------------------------------------------------" 
+  echo "✨ Kerno @ EKS - https://www.kerno.io"
+  echo "🚀 Preparing AWS EKS installation... it should take less than a minute."
+  echo "----------------------------------------------------------------------------"
+  echo
 
   prepare
   install_driver
@@ -237,9 +257,11 @@ help() {
   echo "    install    - configures EFS in your EKS cluster"
   echo ""
   echo "  Options:"
-  echo "    --cluster   required <eks-cluster-name>"
-  echo "    --profile   optional <aws-profile>"
-  echo "    --region    optional <aws-region>"
+  echo "    --profile       required <aws-profile>"
+  echo "    --region        required <aws-region>"
+  echo "    --cluster       required <eks-cluster-name>"
+  echo "    --k8s-context   required <kubectl-context>"
+  echo "    --k4-key        required <kerno-installation-key>"
   exit
 }
 
@@ -252,7 +274,5 @@ fi
 case $COMMAND in
   help ) help ;;
   install ) install ;;
-  * ) help; exit;;
+  * ) help ;;
 esac
-
-echo All done!
