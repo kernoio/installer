@@ -80,7 +80,7 @@ install_oidc_stack() {
       --capabilities CAPABILITY_NAMED_IAM \
       --stack-name ${CLUSTER}-oidc \
       --parameters ParameterKey=ClusterName,ParameterValue=${CLUSTER} \
-      --template-body file://$SCRIPT_DIR/oidc-provider.yaml `
+      --template-body file://$SCRIPT_DIR/aws/oidc-provider.yaml `
 
     OUT=`aws $AWS_ARGS cloudformation wait stack-create-complete --stack-name ${CLUSTER}-oidc`;
   fi
@@ -226,7 +226,7 @@ create_efs_volume() {
 run_helm() {
   echo "🚀 Installing Kerno via Helm ..."
   helm install --replace kerno ./helm   \
-    --kube-context $K8s_CONTEXT                                    \
+    --kube-context $K8S_CONTEXT                                    \
     --set global.fsId="$EFS_FS_ID"                                 \
     --set apiKey="$K4_KEY"                                 \
     -f ./helm/values-prod.yaml
