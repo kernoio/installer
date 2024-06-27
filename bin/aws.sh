@@ -7,11 +7,12 @@ if [[  $DEPS_OK != 5 ]]; then
 fi
 
 COMMAND=$1
+K4_KEY=""
 CLUSTER=""
 AWS_ARGS=""
 
-# evaluate command line options
-VALID_ARGS=$(getopt -o n:p:r:c: --long profile:,region:,cluster: -- "$@")
+# evaluate command line options   -o n:p:r:c:
+VALID_ARGS=$(getopt --long k4-key:,profile:,region:,cluster: -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
 fi
@@ -33,6 +34,11 @@ while [ : ]; do
         ;;
     --cluster)
         CLUSTER="$2"
+        shift 2
+        continue
+        ;;
+    --k4-key)
+        K4_KEY="$2"
         shift 2
         continue
         ;;
@@ -150,13 +156,6 @@ EOF
 
 
 create_efs_volume() {
-  if [[ -z "$CLUSTER" ]]; then
-    echo "$0: --cluster <eks-cluster-name> is required"
-    help
-    exit
-  fi
-
-
   EFS_NAME="$CLUSTER-kerno-efs"
   echo Creating EFS file-system $EFS_NAME accessible by $CLUSTER ...
   EFS_DESCRIBE=`aws $AWS_ARGS efs describe-file-systems`
@@ -200,22 +199,31 @@ create_efs_volume() {
 run_helm() {
   echo Installing Kerno via helm with EFS $EFS_FS_ID
   helm install -f ./helm/values-prod.yaml                \
-    --set global.fsId=fs-00d795ee8cf1d91c9               \
-    --set clusterId=dbc1e193-2cb6-4ffd-8294-eafb588b4378 \
-    --set clusterName=InstallationTest                   \
+    --set global.fsId=$EFS_FS_ID                         \
+    --set clusterId=$K4_KEY                              \
     --set apiKey=$K4_KEY                                 \
     ./helm
-    ;
 }
 
 
 install() {
   if [[ -z "$CLUSTER" ]]; then
     echo "$0: --cluster <eks-cluster-name> is required"
+    help
+    exit
+  fi
+  if [[ -z "$AWS_ARGS" ]]; then
+    echo "$0: --profile and --region are required"
     echo ""
     help
     exit
   fi
+  if [[ -z "$K4_KEY" ]]; then
+    echo "$0: --k4-key <installation-key> is required"
+    help
+    exit
+  fi
+
   prepare
   install_driver
   create_efs_volume
@@ -247,6 +255,5 @@ case $COMMAND in
   install ) install ;;
   * ) help; exit;;
 esac
-
 
 echo All done!
