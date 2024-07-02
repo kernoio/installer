@@ -188,7 +188,7 @@ create_efs_volume() {
 run_helm() {
   echo "🚀 Installing Kerno via Helm ..."
   helm install --replace kerno ./helm   \
-    --kube-context $K8s_CONTEXT                                    \
+    --kube-context $K8S_CONTEXT                                    \
     --set global.fsId="$EFS_FS_ID"                                 \
     --set apiKey="$K4_KEY"                                 \
     -f ./helm/values-prod.yaml
