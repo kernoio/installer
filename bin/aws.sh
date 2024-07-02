@@ -57,6 +57,11 @@ install_driver() {
   ALREADY_DRIVER=`aws $AWS_ARGS eks list-addons --cluster-name $CLUSTER --query "addons" --output text | grep aws-efs-csi-driver`
   if [[ $ALREADY_DRIVER == "aws-efs-csi-driver" ]]; then
     echo "🚀 aws-efs-csi-driver addon is already installed in your cluster."
+
+    EFS_SECURITY_GROUP_ID=`aws $AWS_ARGS ec2 describe-security-groups \
+        | jq -er '.SecurityGroups[] | select(.GroupName == "EksEfsSecurityGroup") | .GroupId '
+        `
+
     return
   fi
 
