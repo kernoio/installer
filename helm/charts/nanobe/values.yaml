@@ -46,3 +46,21 @@ volumeMounts:
     readOnly: true
 
 terminationGracePeriodSeconds: 10
+
+quarkService:
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 8443
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+
+nanobeService:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080

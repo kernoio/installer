@@ -3,6 +3,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Values.storage.type }}-claim-scribe
+  namespace: {{ .Values.global.namespace }}
 spec:
   accessModes:
     - ReadWriteMany

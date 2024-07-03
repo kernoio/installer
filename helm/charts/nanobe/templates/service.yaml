@@ -1,0 +1,44 @@
+# This service exists for backward compatibility preon sends to the nanobe service name instead
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Chart.Name }}
+  name: scribe
+  namespace: {{ .Values.global.namespace }}
+spec:
+  ports:
+    {{- toYaml .Values.nanobeService.ports | nindent 4 }}
+  selector:
+    {{- include "app-chart.selectorLabels" . | nindent 4 }}
+  type: ClusterIP
+---
+# This service exists for backward compatibility preon sends to the nanobe service name instead
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Chart.Name }}
+  name: quark-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  type: ClusterIP
+  ports:
+    {{- toYaml .Values.quarkService.ports | nindent 4 }}
+  selector:
+    {{- include "app-chart.selectorLabels" . | nindent 6 }}
+---
+# This is the new service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Chart.Name }}
+  name: {{ .Chart.Name }}
+  namespace: {{ .Values.global.namespace }}
+spec:
+  type: ClusterIP
+  ports:
+    {{- toYaml .Values.nanobeService.ports | nindent 4 }}
+  selector:
+    {{- include "app-chart.selectorLabels" . | nindent 6 }}

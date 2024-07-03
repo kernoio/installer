@@ -67,8 +67,8 @@ Generate certificates
 {{- define "gen-tls-certs" -}}
 {{ if .Values.global.tlsCert | empty }}
 {{- $altNames := list ( print "localhost" ) ( printf "*.%s.svc" .Values.global.namespace ) ( printf "*.%s.svc.cluster.local" .Values.global.namespace ) ( printf "*.%s.pod.cluster.local" .Values.global.namespace ) -}}
-{{- $ca := genCA "Kerno" 365000 -}}
-{{- $cert := genSignedCert "Kerno" nil $altNames 365000 $ca -}}
+{{- $ca := genCA "Kerno" 10000 -}}
+{{- $cert := genSignedCert "Kerno" nil $altNames 10000 $ca -}}
 {{- $_ := set .Values.global "tlsCert" ($cert.Cert | b64enc)  -}}
 {{- $_ := set .Values.global "tlsKey" ($cert.Key | b64enc) -}}
 {{- end -}}

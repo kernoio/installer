@@ -133,7 +133,7 @@ spec:
         {{- with .Values.global.sauron.extraEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        image: {{ .Values.global.imageRepository }}/{{ .Chart.Name }}:{{ .Values.global.nanobe.image.tag | default .Values.global.environment }}
+        image: {{ .Values.global.imageRepository }}/{{ .Chart.Name }}:{{ .Values.global.sauron.image.tag | default .Values.global.environment }}
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
