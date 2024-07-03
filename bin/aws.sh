@@ -9,6 +9,7 @@ fi
 
 COMMAND="$1"
 K4_KEY=""
+K4_ID=""
 K8S_CONTEXT=""
 CLUSTER=""
 AWS_ARGS=""
@@ -188,9 +189,10 @@ create_efs_volume() {
 run_helm() {
   echo "🚀 Installing Kerno via Helm ..."
   helm install --replace kerno ./helm   \
-    --kube-context $K8S_CONTEXT                                    \
-    --set global.fsId="$EFS_FS_ID"                                 \
-    --set apiKey="$K4_KEY"                                 \
+    --kube-context $K8S_CONTEXT         \
+    --set global.fsId="$EFS_FS_ID"      \
+    --set apiKey="$K4_KEY"              \
+    --set clusterId="$K4_ID"            \
     -f ./helm/values-prod.yaml
   echo "All done."
 }
@@ -210,6 +212,11 @@ install() {
   fi
   if [[ -z "$K4_KEY" ]]; then
     echo "$0: --k4-key <installation-key> is required"
+    help
+    exit
+  fi
+  if [[ -z "$K4_ID" ]]; then
+    echo "$0: --k4-id <installation-id> is required"
     help
     exit
   fi
@@ -248,6 +255,7 @@ help() {
   echo "    --cluster       required <eks-cluster-name>"
   echo "    --k8s-context   required <kubectl-context>"
   echo "    --k4-key        required <kerno-installation-key>"
+  echo "    --k4-id         required <kerno-installation-id>"
   exit
 }
 
@@ -257,7 +265,7 @@ if [[ -z "$COMMAND" ]]; then
 fi
 
 # evaluate command line options   -o n:p:r:c:
-VALID_ARGS=$(getopt --long k8s-context:,k4-key:,profile:,region:,cluster: -- "$@")
+VALID_ARGS=$(getopt --long k8s-context:,k4-key:,k4-id:,profile:,region:,cluster: -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
 fi
@@ -289,6 +297,11 @@ while [ : ]; do
         ;;
     --k4-key)
         K4_KEY="$2"
+        shift 2
+        continue
+        ;;
+    --k4-id)
+        K4_ID="$2"
         shift 2
         continue
         ;;
