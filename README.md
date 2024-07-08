@@ -19,13 +19,18 @@ Awesome
 ```console
 $ git clone --depth 1 git@github.com:kernoio/installer kerno-installer
 $ cd kerno-installer
-$ ./bin/aws.sh install   \
+$ ./bin/aws.sh install \
   --profile $AWS_PROFILE \
   --region  $AWS_REGION  \
   --cluster $EKS_CLUSTER \
-  --k8s-context $K8S_CONTEXT_NAME \
-  --k4-key  $K4_KEY      
+  --k4-key  $K4_KEY \
+  --k4-id   $K4_ID \
+  --k8s-context $K8S_CONTEXT_NAME
 ```
+- AWS_PROFILE and AWS_REGION are the AWS values to access the cluster and create the storage
+- EKS_CLUSTER is the name of the cluster
+- K4_KEY and K4_ID are provided by Kerno
+- K8S_CONTEXT_NAME is the local name of the k8s context whew you want to do the installation
 
 
 ### Wait, what are you doing?
